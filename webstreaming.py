@@ -4,9 +4,7 @@
 # import the necessary packages
 from pyimagesearch.motion_detection import SingleMotionDetector
 from imutils.video import VideoStream
-from flask import Response
-from flask import Flask
-from flask import render_template
+from flask import Response, Flask, render_template, url_for
 import threading
 import argparse
 import datetime
@@ -30,9 +28,9 @@ vs = VideoStream(src=0).start()
 time.sleep(2.0)
 
 @app.route("/")
-def index():
+def home():
 	# return the rendered template
-	return render_template("index.html")
+	return render_template("home.html")
 
 def detect_motion(frameCount):
 	# grab global references to the video stream, output frame, and
@@ -73,7 +71,7 @@ def detect_motion(frameCount):
 				(thresh, (minX, minY, maxX, maxY)) = motion
 				cv2.rectangle(frame, (minX, minY), (maxX, maxY),
 					(0, 0, 255), 2)
-		
+
 		# update the background model and increment the total number
 		# of frames read thus far
 		md.update(gray)
@@ -83,7 +81,7 @@ def detect_motion(frameCount):
 		# lock
 		with lock:
 			outputFrame = frame.copy()
-		
+
 def generate():
 	# grab global references to the output frame and lock variables
 	global outputFrame, lock
@@ -105,7 +103,7 @@ def generate():
 				continue
 
 		# yield the output frame in the byte format
-		yield(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + 
+		yield(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' +
 			bytearray(encodedImage) + b'\r\n')
 
 @app.route("/video_feed")
