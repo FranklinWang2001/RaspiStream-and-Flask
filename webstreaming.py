@@ -4,7 +4,8 @@
 # import the necessary packages
 from pyimagesearch.motion_detection import SingleMotionDetector
 from imutils.video import VideoStream
-from flask import Response, Flask, render_template, url_for
+from forms import CameraPower
+from flask import Response, Flask, render_template, url_for, request
 import threading
 import argparse
 import datetime
@@ -20,6 +21,7 @@ lock = threading.Lock()
 
 # initialize a flask object
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'cf21ee8a4cee82fa62563445a4c6cdd4'
 
 # initialize the video stream and allow the camera sensor to
 # warmup
@@ -27,10 +29,25 @@ app = Flask(__name__)
 vs = VideoStream(src=0).start()
 time.sleep(2.0)
 
-@app.route("/")
+@app.route("/", methods=['GET', 'POST'])
 def home():
+	power = True # if True, camera is on
+
+	if "Camera On" in request.form:
+		power = True
+	elif "Camera Off" in request.form:
+		power = False
+
 	# return the rendered template
-	return render_template("home.html")
+	return render_template("home.html", power=power)
+
+
+@app.route("/video_feed")
+def video_feed():
+	# return the response generated along with the specific media
+	# type (mime type)
+	return Response(generate(),
+		mimetype = "multipart/x-mixed-replace; boundary=frame")
 
 def detect_motion(frameCount):
 	# grab global references to the video stream, output frame, and
@@ -106,12 +123,7 @@ def generate():
 		yield(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' +
 			bytearray(encodedImage) + b'\r\n')
 
-@app.route("/video_feed")
-def video_feed():
-	# return the response generated along with the specific media
-	# type (mime type)
-	return Response(generate(),
-		mimetype = "multipart/x-mixed-replace; boundary=frame")
+
 
 # check to see if this is the main thread of execution
 if __name__ == '__main__':
