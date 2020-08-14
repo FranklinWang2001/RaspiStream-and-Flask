@@ -3,6 +3,7 @@ import numpy as np
 import imutils
 import cv2
 
+
 class SingleMotionDetector:
 	def __init__(self, accumWeight=0.5):
 		# store the accumulated weight factor
@@ -22,6 +23,7 @@ class SingleMotionDetector:
 		cv2.accumulateWeighted(image, self.bg, self.accumWeight)
 
 	def detect(self, image, tVal=25):
+		text = "Unoccupied"
 		# compute the absolute difference between the background model
 		# and the image passed in, then threshold the delta image
 		delta = cv2.absdiff(self.bg.astype("uint8"), image)
@@ -51,6 +53,8 @@ class SingleMotionDetector:
 			(x, y, w, h) = cv2.boundingRect(c)
 			(minX, minY) = (min(minX, x), min(minY, y))
 			(maxX, maxY) = (max(maxX, x + w), max(maxY, y + h))
+			text = "Occupied"
+
 
 		# otherwise, return a tuple of the thresholded image along
 		# with bounding box

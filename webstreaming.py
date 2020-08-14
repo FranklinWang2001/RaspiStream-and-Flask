@@ -4,7 +4,6 @@
 # import the necessary packages
 from pyimagesearch.motion_detection import SingleMotionDetector
 from imutils.video import VideoStream
-from forms import CameraPower
 from flask import Response, Flask, render_template, url_for, request
 import threading
 import argparse
@@ -12,6 +11,9 @@ import datetime
 import imutils
 import time
 import cv2
+import smtplib
+import os
+from email.message import EmailMessage
 
 # initialize the output frame and a lock used to ensure thread-safe
 # exchanges of the output frames (useful for multiple browsers/tabs
@@ -29,18 +31,23 @@ app.config['SECRET_KEY'] = 'cf21ee8a4cee82fa62563445a4c6cdd4'
 vs = VideoStream(src=0).start()
 time.sleep(2.0)
 
+# initialize last uploaded timestamp and frame motion counter
+lastUploaded = datetime.datetime.now()
+motionCounter = 0
+
 @app.route("/", methods=['GET', 'POST'])
 def home():
+	global vs
 	power = True # if True, camera is on
 
 	if "Camera On" in request.form:
 		power = True
 	elif "Camera Off" in request.form:
 		power = False
+		vs.stop()
 
 	# return the rendered template
 	return render_template("home.html", power=power)
-
 
 @app.route("/video_feed")
 def video_feed():
@@ -61,6 +68,7 @@ def detect_motion(frameCount):
 
 	# loop over frames from the video stream
 	while True:
+		text = "Unoccupied"
 		# read the next frame from the video stream, resize it,
 		# convert the frame to grayscale, and blur it
 		frame = vs.read()
@@ -68,11 +76,6 @@ def detect_motion(frameCount):
 		gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 		gray = cv2.GaussianBlur(gray, (7, 7), 0)
 
-		# grab the current timestamp and draw it on the frame
-		timestamp = datetime.datetime.now()
-		cv2.putText(frame, timestamp.strftime(
-			"%A %d %B %Y %I:%M:%S%p"), (10, frame.shape[0] - 10),
-			cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 255), 1)
 
 		# if the total number of frames has reached a sufficient
 		# number to construct a reasonable background model, then
@@ -88,6 +91,18 @@ def detect_motion(frameCount):
 				(thresh, (minX, minY, maxX, maxY)) = motion
 				cv2.rectangle(frame, (minX, minY), (maxX, maxY),
 					(0, 0, 255), 2)
+				text = "Occupied"
+
+		# grab the current timestamp and draw it on the frame
+		timestamp = datetime.datetime.now()
+		cv2.putText(frame, timestamp.strftime(
+			"%A %d %B %Y %I:%M:%S%p"), (10, frame.shape[0] - 10),
+			cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 255), 1)
+		cv2.putText(frame, "Room Status: {}".format(text), (10, 20),
+			cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+
+		if text == "Occupied":
+			send_email(timestamp)
 
 		# update the background model and increment the total number
 		# of frames read thus far
@@ -123,6 +138,44 @@ def generate():
 		yield(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' +
 			bytearray(encodedImage) + b'\r\n')
 
+
+def send_email(timestamp):
+	global motionCounter, lastUploaded
+
+	min_send_seconds = 5 
+	min_motion_frames = 8
+
+	# set usernames for email
+	app_email = os.environ.get('APP_EMAIL')
+	normal_email = os.environ.get('EMAIL_USER')
+	app_pass = os.environ.get('APP_PASS')
+	contacts = [app_email, normal_email]
+
+	# prepare email message
+	msg = EmailMessage()
+	msg['From'] = app_email
+	msg['To'] = contacts
+	msg['Subject'] = 'Motion Detection Alert'
+	msg.set_content('Motion detected at ' + str(timestamp))
+
+	if (timestamp - lastUploaded).seconds >= min_send_seconds:
+		# increment the motion counter
+		motionCounter += 1
+		# check to see if the number of frames with consistent motion is
+		# high enough
+		if motionCounter >= min_motion_frames:
+			with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+			    smtp.login(app_email, app_pass)
+			    smtp.send_message(msg)
+
+			# update the last uploaded timestamp and reset the motion
+			# counter
+			lastUploaded = timestamp
+			motionCounter = 0
+
+	# otherwise, the room is not occupied
+	else:
+		motionCounter = 0
 
 
 # check to see if this is the main thread of execution
