@@ -3,6 +3,7 @@
 
 # import the necessary packages
 from pyimagesearch.motion_detection import SingleMotionDetector
+from pyimagesearch.keyclipwriter import KeyClipWriter
 from imutils.video import VideoStream
 from flask import Response, Flask, render_template, url_for, request
 import threading
@@ -31,6 +32,9 @@ app.config['SECRET_KEY'] = 'cf21ee8a4cee82fa62563445a4c6cdd4'
 vs = VideoStream(src=0).start()
 time.sleep(2.0)
 
+# initalize KeyClipWriter to allow recording of video
+kcw = KeyClipWriter()
+
 # initialize last uploaded timestamp and frame motion counter
 lastUploaded = datetime.datetime.now()
 motionCounter = 0
@@ -56,6 +60,10 @@ def video_feed():
 	return Response(generate(),
 		mimetype = "multipart/x-mixed-replace; boundary=frame")
 
+@app.route("/saved_videos")
+def saved_videos():
+	pass
+
 def detect_motion(frameCount):
 	# grab global references to the video stream, output frame, and
 	# lock variables
@@ -66,8 +74,17 @@ def detect_motion(frameCount):
 	md = SingleMotionDetector(accumWeight=0.1)
 	total = 0
 
+	# number of frames with motion
+	kcw = KeyClipWriter()
+	consecFramesNoMotion = 0
+	bufferSize = 32
+	outputPath = 'output'
+	codec = 'MJPG'
+	fps = 20
+
 	# loop over frames from the video stream
 	while True:
+		timestamp = datetime.datetime.now()
 		text = "Unoccupied"
 		# read the next frame from the video stream, resize it,
 		# convert the frame to grayscale, and blur it
@@ -76,7 +93,6 @@ def detect_motion(frameCount):
 		gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 		gray = cv2.GaussianBlur(gray, (7, 7), 0)
 
-
 		# if the total number of frames has reached a sufficient
 		# number to construct a reasonable background model, then
 		# continue to process the frame
@@ -84,7 +100,7 @@ def detect_motion(frameCount):
 			# detect motion in the image
 			motion = md.detect(gray)
 
-			# cehck to see if motion was found in the frame
+			# check to see if motion was found in the frame
 			if motion is not None:
 				# unpack the tuple and draw the box surrounding the
 				# "motion area" on the output frame
@@ -92,17 +108,28 @@ def detect_motion(frameCount):
 				cv2.rectangle(frame, (minX, minY), (maxX, maxY),
 					(0, 0, 255), 2)
 				text = "Occupied"
+				send_email(timestamp)
+
+				# if we are not already recording, start recording
+				if not kcw.recording:
+					timeDetected = timestamp.strftime("%Y%m%d-%H%M%S")
+					p = "{}/{}.avi".format(outputPath, timeDetected)
+					kcw.start(p, cv2.VideoWriter_fourcc(*codec), fps)
+			else:
+				consecFramesNoMotion += 1
 
 		# grab the current timestamp and draw it on the frame
-		timestamp = datetime.datetime.now()
 		cv2.putText(frame, timestamp.strftime(
 			"%A %d %B %Y %I:%M:%S%p"), (10, frame.shape[0] - 10),
 			cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 255), 1)
 		cv2.putText(frame, "Room Status: {}".format(text), (10, 20),
 			cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
-		if text == "Occupied":
-			send_email(timestamp)
+		# update the key frame clip buffer
+		kcw.update(frame)
+
+		if kcw.recording and consecFramesNoMotion == bufferSize:
+			kcw.finish()
 
 		# update the background model and increment the total number
 		# of frames read thus far
@@ -142,7 +169,7 @@ def generate():
 def send_email(timestamp):
 	global motionCounter, lastUploaded
 
-	min_send_seconds = 5 
+	min_send_seconds = 5
 	min_motion_frames = 8
 
 	# set usernames for email
