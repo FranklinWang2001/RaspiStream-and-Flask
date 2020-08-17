@@ -32,9 +32,6 @@ app.config['SECRET_KEY'] = 'cf21ee8a4cee82fa62563445a4c6cdd4'
 vs = VideoStream(src=0).start()
 time.sleep(2.0)
 
-# initalize KeyClipWriter to allow recording of video
-kcw = KeyClipWriter()
-
 # initialize last uploaded timestamp and frame motion counter
 lastUploaded = datetime.datetime.now()
 motionCounter = 0
@@ -74,7 +71,6 @@ def detect_motion(frameCount):
 	md = SingleMotionDetector(accumWeight=0.1)
 	total = 0
 
-	# number of frames with motion
 	kcw = KeyClipWriter()
 	consecFramesNoMotion = 0
 	bufferSize = 32
@@ -109,14 +105,10 @@ def detect_motion(frameCount):
 					(0, 0, 255), 2)
 				text = "Occupied"
 				send_email(timestamp)
-
-				# if we are not already recording, start recording
-				if not kcw.recording:
-					timeDetected = timestamp.strftime("%Y%m%d-%H%M%S")
-					p = "{}/{}.avi".format(outputPath, timeDetected)
-					kcw.start(p, cv2.VideoWriter_fourcc(*codec), fps)
 			else:
 				consecFramesNoMotion += 1
+
+			record_video(kcw, frame, motion, consecFramesNoMotion, timestamp)
 
 		# grab the current timestamp and draw it on the frame
 		cv2.putText(frame, timestamp.strftime(
@@ -124,12 +116,6 @@ def detect_motion(frameCount):
 			cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 255), 1)
 		cv2.putText(frame, "Room Status: {}".format(text), (10, 20),
 			cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
-
-		# update the key frame clip buffer
-		kcw.update(frame)
-
-		if kcw.recording and consecFramesNoMotion == bufferSize:
-			kcw.finish()
 
 		# update the background model and increment the total number
 		# of frames read thus far
@@ -203,6 +189,25 @@ def send_email(timestamp):
 	# otherwise, the room is not occupied
 	else:
 		motionCounter = 0
+
+def record_video(kcw, frame, motion, consecFramesNoMotion, timestamp):
+	bufferSize = 32
+	outputPath = 'output'
+	codec = 'MJPG'
+	fps = 20
+
+	if motion:
+		# if we are not already recording, start recording
+		if not kcw.recording:
+			timeDetected = timestamp.strftime("%Y%m%d-%H%M%S")
+			p = "{}/{}.avi".format(outputPath, timeDetected)
+			kcw.start(p, cv2.VideoWriter_fourcc(*codec), fps)
+
+	# update the key frame clip buffer
+	kcw.update(frame)
+
+	if kcw.recording and consecFramesNoMotion == bufferSize:
+		kcw.finish()
 
 
 # check to see if this is the main thread of execution
