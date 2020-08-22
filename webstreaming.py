@@ -28,8 +28,8 @@ app.config['SECRET_KEY'] = 'cf21ee8a4cee82fa62563445a4c6cdd4'
 
 # initialize the video stream and allow the camera sensor to
 # warmup
-#vs = VideoStream(usePiCamera=1).start()
-vs = VideoStream(src=0).start()
+vs = VideoStream(usePiCamera=1).start()
+#vs = VideoStream(src=0).start()
 time.sleep(2.0)
 
 # initialize last uploaded timestamp and frame motion counter
