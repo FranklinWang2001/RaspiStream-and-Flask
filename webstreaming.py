@@ -43,6 +43,8 @@ def home():
 
 	if "Camera On" in request.form:
 		power = True
+		vs = VideoStream(src=0).start()
+		time.sleep(2.0)
 	elif "Camera Off" in request.form:
 		power = False
 		vs.stop()
@@ -71,12 +73,9 @@ def detect_motion(frameCount):
 	md = SingleMotionDetector(accumWeight=0.1)
 	total = 0
 
+	# initialize KeyClipWriter, set counter for frames with no motion detected
 	kcw = KeyClipWriter()
 	consecFramesNoMotion = 0
-	bufferSize = 32
-	outputPath = 'output'
-	codec = 'MJPG'
-	fps = 20
 
 	# loop over frames from the video stream
 	while True:
@@ -104,7 +103,12 @@ def detect_motion(frameCount):
 				cv2.rectangle(frame, (minX, minY), (maxX, maxY),
 					(0, 0, 255), 2)
 				text = "Occupied"
+
+				# send email to notify user of motion
 				send_email(timestamp)
+
+				# motion has occured, so reset frames with no motion counter
+				consecFramesNoMotion = 0
 			else:
 				consecFramesNoMotion += 1
 
@@ -192,7 +196,7 @@ def send_email(timestamp):
 
 def record_video(kcw, frame, motion, consecFramesNoMotion, timestamp):
 	bufferSize = 32
-	outputPath = 'output'
+	outputPath = 'static'
 	codec = 'MJPG'
 	fps = 20
 
@@ -206,7 +210,8 @@ def record_video(kcw, frame, motion, consecFramesNoMotion, timestamp):
 	# update the key frame clip buffer
 	kcw.update(frame)
 
-	if kcw.recording and consecFramesNoMotion == bufferSize:
+	# stop recording video when there are enough frames without motion
+	if kcw.recording and consecFramesNoMotion >= bufferSize:
 		kcw.finish()
 
 
