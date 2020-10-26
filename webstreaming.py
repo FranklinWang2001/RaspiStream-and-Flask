@@ -14,6 +14,8 @@ import time
 import cv2
 import smtplib
 import os
+import os.path as op
+import glob
 from email.message import EmailMessage
 
 # initialize the output frame and a lock used to ensure thread-safe
@@ -29,20 +31,22 @@ app.config['SECRET_KEY'] = 'cf21ee8a4cee82fa62563445a4c6cdd4'
 # initialize the video stream and allow the camera sensor to
 # warmup
 #vs = VideoStream(usePiCamera=1).start()
-vs = VideoStream(src=0).start()
-time.sleep(2.0)
+vs = VideoStream(src=0)
 
 # initialize last uploaded timestamp and frame motion counter
-lastUploaded = datetime.datetime.now()
+lastUploadedEmail = datetime.datetime.now()
+lastUploadedVideo = datetime.datetime.now()
 motionCounter = 0
 
 @app.route("/", methods=['GET', 'POST'])
 def home():
 	global vs
-	power = True # if True, camera is on
+	power = False # if True, camera is on
 
 	if "Camera On" in request.form:
 		power = True
+		vs = VideoStream(src=0).start()
+		time.sleep(2.0)
 	elif "Camera Off" in request.form:
 		power = False
 		vs.stop()
@@ -59,7 +63,27 @@ def video_feed():
 
 @app.route("/saved_videos")
 def saved_videos():
-	pass
+	video_path = ""
+	if ( not("/static/videos" in os.getcwd()) ):
+		video_path = op.abspath('./static/videos')
+		os.chdir(video_path)
+
+	vid_list = glob.glob('*.mp4')
+	vid_list.sort()
+
+	all_video_paths = []
+	for vid in vid_list:
+	    vid_abspath = op.abspath(vid)
+	    all_video_paths.append(vid_abspath)
+
+	combined_vid_list = []
+	list_size = len(vid_list)
+
+	for i in range(0, list_size):
+	    vid_and_abspath = (vid_list[i], all_video_paths[i])
+	    combined_vid_list.append(vid_and_abspath)
+
+	return render_template("saved_videos.html", combined_vid_list=combined_vid_list)
 
 def detect_motion(frameCount):
 	# grab global references to the video stream, output frame, and
@@ -73,10 +97,6 @@ def detect_motion(frameCount):
 
 	kcw = KeyClipWriter()
 	consecFramesNoMotion = 0
-	bufferSize = 32
-	outputPath = 'output'
-	codec = 'MJPG'
-	fps = 20
 
 	# loop over frames from the video stream
 	while True:
@@ -105,6 +125,7 @@ def detect_motion(frameCount):
 					(0, 0, 255), 2)
 				text = "Occupied"
 				send_email(timestamp)
+				consecFramesNoMotion = 0
 			else:
 				consecFramesNoMotion += 1
 
@@ -153,7 +174,7 @@ def generate():
 
 
 def send_email(timestamp):
-	global motionCounter, lastUploaded
+	global motionCounter, lastUploadedEmail
 
 	min_send_seconds = 5
 	min_motion_frames = 8
@@ -171,7 +192,7 @@ def send_email(timestamp):
 	msg['Subject'] = 'Motion Detection Alert'
 	msg.set_content('Motion detected at ' + str(timestamp))
 
-	if (timestamp - lastUploaded).seconds >= min_send_seconds:
+	if (timestamp - lastUploadedEmail).seconds >= min_send_seconds:
 		# increment the motion counter
 		motionCounter += 1
 		# check to see if the number of frames with consistent motion is
@@ -183,7 +204,7 @@ def send_email(timestamp):
 
 			# update the last uploaded timestamp and reset the motion
 			# counter
-			lastUploaded = timestamp
+			lastUploadedEmail = timestamp
 			motionCounter = 0
 
 	# otherwise, the room is not occupied
@@ -191,23 +212,33 @@ def send_email(timestamp):
 		motionCounter = 0
 
 def record_video(kcw, frame, motion, consecFramesNoMotion, timestamp):
+	global lastUploadedVideo
+
 	bufferSize = 32
-	outputPath = 'output'
-	codec = 'MJPG'
+	outputPath = 'static/videos'
+	codec = 'mp4v' # record mp4 video
 	fps = 20
 
+	# minimum seconds between uploads
+	min_record_seconds = 20
+	min_motion_frames = 8
+
+	# (timestamp - lastUploadedVideo).seconds >= min_record_seconds
 	if motion:
+		print('This code runs')
 		# if we are not already recording, start recording
 		if not kcw.recording:
 			timeDetected = timestamp.strftime("%Y%m%d-%H%M%S")
-			p = "{}/{}.avi".format(outputPath, timeDetected)
+			p = "{}/{}.mp4".format(outputPath, timeDetected)
 			kcw.start(p, cv2.VideoWriter_fourcc(*codec), fps)
 
 	# update the key frame clip buffer
 	kcw.update(frame)
 
-	if kcw.recording and consecFramesNoMotion == bufferSize:
+	if kcw.recording and consecFramesNoMotion >= bufferSize:
 		kcw.finish()
+		lastUploadedVideo = timestamp
+		print('Uploaded video at: ' + str(lastUploadedVideo))
 
 
 # check to see if this is the main thread of execution
@@ -230,7 +261,7 @@ if __name__ == '__main__':
 
 	# start the flask app
 	app.run(host=args["ip"], port=args["port"], debug=True,
-		threaded=True, use_reloader=False)
+		threaded=True, use_reloader=True)
 
 # release the video stream pointer
 vs.stop()

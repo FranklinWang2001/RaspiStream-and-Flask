@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+{% block content %}
+  <body>
+    <div class="container">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Your Saved Videos</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for vid in combined_vid_list %}
+            <tr>
+              <td>
+                <!-- url_for(vid[1]) -->
+                <a href="{{ url_for('static', filename='/videos/' + vid[0]) }}">{{ vid[0] }}</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+    </div>
+  </body>
+{% endblock content %}
