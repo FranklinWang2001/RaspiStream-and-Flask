@@ -35,7 +35,6 @@ vs = VideoStream(src=0)
 
 # initialize last uploaded timestamp and frame motion counter
 lastUploadedEmail = datetime.datetime.now()
-lastUploadedVideo = datetime.datetime.now()
 motionCounter = 0
 
 @app.route("/", methods=['GET', 'POST'])
@@ -212,20 +211,12 @@ def send_email(timestamp):
 		motionCounter = 0
 
 def record_video(kcw, frame, motion, consecFramesNoMotion, timestamp):
-	global lastUploadedVideo
-
 	bufferSize = 32
 	outputPath = 'static/videos'
 	codec = 'mp4v' # record mp4 video
 	fps = 20
 
-	# minimum seconds between uploads
-	min_record_seconds = 20
-	min_motion_frames = 8
-
-	# (timestamp - lastUploadedVideo).seconds >= min_record_seconds
 	if motion:
-		print('This code runs')
 		# if we are not already recording, start recording
 		if not kcw.recording:
 			timeDetected = timestamp.strftime("%Y%m%d-%H%M%S")
@@ -237,8 +228,7 @@ def record_video(kcw, frame, motion, consecFramesNoMotion, timestamp):
 
 	if kcw.recording and consecFramesNoMotion >= bufferSize:
 		kcw.finish()
-		lastUploadedVideo = timestamp
-		print('Uploaded video at: ' + str(lastUploadedVideo))
+
 
 
 # check to see if this is the main thread of execution
