@@ -94,6 +94,7 @@ def detect_motion(frameCount):
 	md = SingleMotionDetector(accumWeight=0.1)
 	total = 0
 
+	# initialize KeyClipWriter, set counter for frames with no motion detected
 	kcw = KeyClipWriter()
 	consecFramesNoMotion = 0
 
@@ -123,7 +124,11 @@ def detect_motion(frameCount):
 				cv2.rectangle(frame, (minX, minY), (maxX, maxY),
 					(0, 0, 255), 2)
 				text = "Occupied"
+
+				# send email to notify user of motion
 				send_email(timestamp)
+
+				# motion has occured, so reset frames with no motion counter
 				consecFramesNoMotion = 0
 			else:
 				consecFramesNoMotion += 1
@@ -226,6 +231,8 @@ def record_video(kcw, frame, motion, consecFramesNoMotion, timestamp):
 	# update the key frame clip buffer
 	kcw.update(frame)
 
+
+	# stop recording video when there are enough frames without motion
 	if kcw.recording and consecFramesNoMotion >= bufferSize:
 		kcw.finish()
 
