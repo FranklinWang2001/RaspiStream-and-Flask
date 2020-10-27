@@ -9,17 +9,15 @@
           </tr>
         </thead>
         <tbody>
-          {% for vid in combined_vid_list %}
+          {% for vid in vid_list %}
             <tr>
               <td>
-                <!-- url_for(vid[1]) -->
-                <a href="{{ url_for('static', filename='/videos/' + vid[0]) }}">{{ vid[0] }}</a>
+                <a href="{{ url_for('static', filename='/videos/' + vid) }}">{{ vid }}</a>
               </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
-
     </div>
   </body>
 {% endblock content %}

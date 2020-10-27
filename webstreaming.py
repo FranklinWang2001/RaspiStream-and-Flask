@@ -70,19 +70,7 @@ def saved_videos():
 	vid_list = glob.glob('*.mp4')
 	vid_list.sort()
 
-	all_video_paths = []
-	for vid in vid_list:
-	    vid_abspath = op.abspath(vid)
-	    all_video_paths.append(vid_abspath)
-
-	combined_vid_list = []
-	list_size = len(vid_list)
-
-	for i in range(0, list_size):
-	    vid_and_abspath = (vid_list[i], all_video_paths[i])
-	    combined_vid_list.append(vid_and_abspath)
-
-	return render_template("saved_videos.html", combined_vid_list=combined_vid_list)
+	return render_template("saved_videos.html", vid_list=vid_list)
 
 def detect_motion(frameCount):
 	# grab global references to the video stream, output frame, and
@@ -230,7 +218,6 @@ def record_video(kcw, frame, motion, consecFramesNoMotion, timestamp):
 
 	# update the key frame clip buffer
 	kcw.update(frame)
-
 
 	# stop recording video when there are enough frames without motion
 	if kcw.recording and consecFramesNoMotion >= bufferSize:
