@@ -12,7 +12,7 @@
           {% for vid in vid_list %}
             <tr>
               <td>
-                <a href="{{ url_for('static', filename='/videos/' + vid) }}">{{ vid }}</a>
+                <video width="320" height="240" controls src="{{ url_for('static', filename='videos/' + vid) }}"></video>
               </td>
             </tr>
           {% endfor %}

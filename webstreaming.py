@@ -205,11 +205,12 @@ def send_email(timestamp):
 
 def record_video(kcw, frame, motion, consecFramesNoMotion, timestamp):
 	bufferSize = 32
-	outputPath = 'static/videos'
-	codec = 'mp4v' # record mp4 video
+	outputPath = './static/videos'
+	codec = 'avc1' # record mp4 video
 	fps = 20
 
 	if motion:
+		print('this code runs')
 		# if we are not already recording, start recording
 		if not kcw.recording:
 			timeDetected = timestamp.strftime("%Y%m%d-%H%M%S")
