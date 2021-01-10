@@ -22,3 +22,8 @@ The website will automatically record any motion that it detects.
 Next, navigate to the `Saved Videos` page. You can view all recorded motion here.
 
 ![](./images/saved-video.gif)
+
+## Credits
+
+* Outline for website: https://www.pyimagesearch.com/2019/09/02/opencv-stream-video-to-web-browser-html-page/
+* Recording video functionality (changed to start recording based on motion): https://www.pyimagesearch.com/2016/02/29/saving-key-event-video-clips-with-opencv/
