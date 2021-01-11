@@ -118,7 +118,7 @@ def detect_motion(frameCount):
                 text = "Occupied"
 
                 # send email to notify user of motion
-                send_email(timestamp)
+                # send_email(timestamp)
 
                 # motion has occured, so reset frames with no motion counter
                 consecFramesNoMotion = 0
@@ -177,14 +177,15 @@ def send_email(timestamp):
     min_motion_frames = 8
 
     # set usernames for email
-    app_email = os.environ.get('APP_EMAIL')
-    normal_email = os.environ.get('EMAIL_USER')
-    app_pass = os.environ.get('APP_PASS')
-    contacts = [app_email, normal_email]
+    # your email here/os.environ.get(<YOUR ENVIRONMENT VARIABLE FOR EMAIL ADDRESS HERE>)
+    email_address = ''
+    # your password here/os.environ.get(<YOUR ENVIRONMENT VARIABLE FOR EMAIL PASSWORD HERE>)
+    password = ''
+    contacts = [email_address]
 
     # prepare email message
     msg = EmailMessage()
-    msg['From'] = app_email
+    msg['From'] = email_address
     msg['To'] = contacts
     msg['Subject'] = 'Motion Detection Alert'
     msg.set_content('Motion detected at ' + str(timestamp))
@@ -196,7 +197,7 @@ def send_email(timestamp):
         # high enough
         if motionCounter >= min_motion_frames:
             with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-                smtp.login(app_email, app_pass)
+                smtp.login(email_address, password)
                 smtp.send_message(msg)
 
             # update the last uploaded timestamp and reset the motion
@@ -216,7 +217,6 @@ def record_video(kcw, frame, motion, consecFramesNoMotion, timestamp):
     fps = 20
 
     if motion:
-        print('this code runs')
         # if we are not already recording, start recording
         if not kcw.recording:
             timeDetected = timestamp.strftime("%Y%m%d-%H%M%S")
