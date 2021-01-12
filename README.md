@@ -9,7 +9,7 @@ If you would like to configure the app to send emails as well record video, plea
 
 ![](./images/email-settings.png)
 
-Finally, uncomment the second line of code in the `detect_motion()` function to enable email sending.
+Finally, uncomment this line of code in the `detect_motion()` function to enable email sending.
 
 ![](./images/enable-email.png)
 
